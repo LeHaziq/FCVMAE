@@ -63,8 +63,12 @@ def masked_recon_loss(
     huber_delta: float = 0.1,
 ):
     # Query decoded predictions at masked coordinates.
-    pred = pred_st.features_at_coordinates(target_coords.float())
-    recon = F.huber_loss(pred, target_feats, delta=huber_delta)
+    query_coords = target_coords.to(device=pred_st.device, dtype=pred_st.dtype)
+    pred = pred_st.features_at_coordinates(query_coords)
+    # Compute loss in FP32 for stability when AMP is enabled.
+    pred_f = pred.float()
+    target_f = target_feats.float()
+    recon = F.huber_loss(pred_f, target_f, delta=huber_delta)
 
     # Temporal-difference consistency surrogate.
     sort_key = (
@@ -74,8 +78,8 @@ def masked_recon_loss(
         + target_coords[:, 3].long()
     )
     sort_idx = torch.argsort(sort_key)
-    p = pred[sort_idx]
-    t = target_feats[sort_idx]
+    p = pred_f[sort_idx]
+    t = target_f[sort_idx]
 
     if p.shape[0] > 1:
         temporal = F.l1_loss(p[1:] - p[:-1], t[1:] - t[:-1])

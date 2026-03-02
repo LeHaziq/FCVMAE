@@ -8,18 +8,18 @@ model:
 
 data:
   # Raw VoxCeleb2 videos (mp4/mkv/...) used only for offline extraction.
-  voxceleb2_raw_root: /path/to/VoxCeleb2/raw/dev
+  voxceleb2_raw_root: /home/froshi/repositories/ConvNeXt-V2-Video/dataset/train
 
   # VoxCeleb2 pretraining path (extracted frames, not raw mp4).
   # Example: /datasets/VoxCeleb2/frames/dev/<id>/<video>/<track>/frame_XXXX.jpg
-  voxceleb2_frame_root: /path/to/VoxCeleb2/frames/dev
+  voxceleb2_frame_root: dataset/voxceleb2/frames/dev
   voxceleb2_speakers: []        # Optional speaker subset.
   voxceleb2_max_tracks: 0       # 0 means all tracks.
   voxceleb2_max_samples: 0      # 0 means all generated clip windows.
 
   # DISFA paths for AU fine-tuning.
-  frame_root: /path/to/DISFA/frames
-  label_root: /path/to/DISFA/ActionUnit_Labels
+  frame_root: /home/froshi/repositories/ConvNeXt-V2-Video/dataset/DISFA/Frames_Left
+  label_root: /home/froshi/repositories/ConvNeXt-V2-Video/dataset/DISFA/ActionUnit_Labels
 
   # Optional subject filters; [] means all discovered subjects.
   pretrain_subjects: []
