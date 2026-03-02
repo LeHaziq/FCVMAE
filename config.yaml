@@ -7,7 +7,17 @@ model:
   decoder_depth: 2
 
 data:
-  # DISFA paths must point to extracted frame folders and AU label txt files.
+  # Raw VoxCeleb2 videos (mp4/mkv/...) used only for offline extraction.
+  voxceleb2_raw_root: /path/to/VoxCeleb2/raw/dev
+
+  # VoxCeleb2 pretraining path (extracted frames, not raw mp4).
+  # Example: /datasets/VoxCeleb2/frames/dev/<id>/<video>/<track>/frame_XXXX.jpg
+  voxceleb2_frame_root: /path/to/VoxCeleb2/frames/dev
+  voxceleb2_speakers: []        # Optional speaker subset.
+  voxceleb2_max_tracks: 0       # 0 means all tracks.
+  voxceleb2_max_samples: 0      # 0 means all generated clip windows.
+
+  # DISFA paths for AU fine-tuning.
   frame_root: /path/to/DISFA/frames
   label_root: /path/to/DISFA/ActionUnit_Labels
 
@@ -33,6 +43,7 @@ data:
   color_jitter: 0.2
 
 pretrain:
+  dataset: voxceleb2            # voxceleb2 | disfa
   epochs: 100
   batch_size: 4
   num_workers: 4

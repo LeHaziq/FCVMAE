@@ -14,6 +14,7 @@ import MinkowskiEngine as ME
 from disfa import DISFAClipDataset
 from model import MAEConfig, SparseVideoMAE
 from sparse_utils import build_sparse_tensor, make_pretrain_patch_collate_fn
+from voxceleb2 import VoxCeleb2ClipDataset
 
 
 def parse_args():
@@ -101,6 +102,45 @@ def cosine_mask_ratio(step: int, total_steps: int, start: float, end: float):
     return end + 0.5 * (start - end) * (1.0 + torch.cos(torch.tensor(alpha * 3.14159265))).item()
 
 
+def build_pretrain_dataset(cfg: Dict):
+    data_cfg = cfg["data"]
+    pre_cfg = cfg["pretrain"]
+    dataset_name = pre_cfg.get("dataset", "voxceleb2").lower()
+
+    if dataset_name == "voxceleb2":
+        ds = VoxCeleb2ClipDataset(
+            frame_root=data_cfg["voxceleb2_frame_root"],
+            clip_len=data_cfg["clip_len"],
+            image_size=data_cfg["image_size"],
+            clip_stride=data_cfg["clip_stride_pretrain"],
+            speakers=(data_cfg.get("voxceleb2_speakers") or None),
+            temporal_jitter=data_cfg.get("temporal_jitter", 0),
+            augment=data_cfg.get("augment_pretrain", True),
+            hflip_prob=data_cfg.get("hflip_prob", 0.5),
+            color_jitter=data_cfg.get("color_jitter", 0.2),
+            max_tracks=int(data_cfg.get("voxceleb2_max_tracks", 0) or 0),
+            max_samples=int(data_cfg.get("voxceleb2_max_samples", 0) or 0),
+        )
+        return ds
+
+    if dataset_name == "disfa":
+        ds = DISFAClipDataset(
+            frame_root=data_cfg["frame_root"],
+            clip_len=data_cfg["clip_len"],
+            image_size=data_cfg["image_size"],
+            clip_stride=data_cfg["clip_stride_pretrain"],
+            subjects=(data_cfg.get("pretrain_subjects") or None),
+            temporal_jitter=data_cfg.get("temporal_jitter", 0),
+            augment=data_cfg.get("augment_pretrain", True),
+            hflip_prob=data_cfg.get("hflip_prob", 0.5),
+            color_jitter=data_cfg.get("color_jitter", 0.2),
+            return_labels=False,
+        )
+        return ds
+
+    raise ValueError("Unsupported pretrain.dataset. Use 'voxceleb2' or 'disfa'.")
+
+
 def main():
     args = parse_args()
     cfg = load_cfg(args.config)
@@ -118,18 +158,20 @@ def main():
     model = SparseVideoMAE(mae_cfg).to(device)
 
     data_cfg = cfg["data"]
-    ds = DISFAClipDataset(
-        frame_root=data_cfg["frame_root"],
-        clip_len=data_cfg["clip_len"],
-        image_size=data_cfg["image_size"],
-        clip_stride=data_cfg["clip_stride_pretrain"],
-        subjects=(data_cfg.get("pretrain_subjects") or None),
-        temporal_jitter=data_cfg.get("temporal_jitter", 0),
-        augment=data_cfg.get("augment_pretrain", True),
-        hflip_prob=data_cfg.get("hflip_prob", 0.5),
-        color_jitter=data_cfg.get("color_jitter", 0.2),
-        return_labels=False,
-    )
+    try:
+        ds = build_pretrain_dataset(cfg)
+    except FileNotFoundError as exc:
+        dataset_name = cfg["pretrain"].get("dataset", "voxceleb2").lower()
+        if dataset_name == "voxceleb2":
+            raw_root = cfg["data"].get("voxceleb2_raw_root", "/path/to/VoxCeleb2/raw/dev")
+            frame_root = cfg["data"].get("voxceleb2_frame_root", "/path/to/VoxCeleb2/frames/dev")
+            hint = (
+                "VoxCeleb2 frame_root is missing. Extract frames first, e.g.\\n"
+                f"python extract_voxceleb2_frames.py --input-root {raw_root} "
+                f"--output-root {frame_root} --fps 25 --workers 8"
+            )
+            raise FileNotFoundError(f"{exc}\n{hint}") from exc
+        raise
 
     loader = DataLoader(
         ds,
